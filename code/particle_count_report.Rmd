@@ -25,10 +25,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(tidyr)
 library(readr)
+library(plotly)
 
 ```
 
-# Data Pre-Processing
 
 ```{r data import}
 setwd("C:\\Users\\Tarri\\Desktop\\portfolio_projects\\particle_count_dashboard\\data")
@@ -37,14 +37,36 @@ pc_count<- read_csv("filter11 08232021.csv")
 flow_df <- read_csv("filter11 flow 08232021.csv")
 ```
 
-```{r data clean}
+# Background
+The addition of particle counters after filtration in the treatment train at the Ann Arbor Drinking Water Treatment Plant was to determine how the use of particle count data could be implemented into plant optimization and maintenance while assisting with process control. 
+*Cryptosporidium* is an ongoing concern for utilities and its inactivation is a top priority in keeping the public safe. In literature, combined particle counts have been associated with high turbidity, changes in filtration rate, temperature variations, and type of media used. By analyzing particle count data of *cryptosporidium* sized particles, utilities can optimize plant operations by adjusting coagulant dosage and filter run time during spikes in particle counts to reduce potential high concentrations of contaminants.
 
+
+# Data Pre-Processing
+Taking a look at a summary of the initial data, we can see that many of the columns did not read in correctly, such as the Date column being a character class, and some columns are not relevant to this analysis. To allow for analysis, this data must be corrected and merged with the flow data at the appropriate time event. 
+
+```{r data clean}
+kable(summary(pc_count), "html", caption="Initial Particle Count Data") %>%
+    kable_styling() %>%
+    scroll_box(width = "100%", height = "500px")
 
 
 
 ```
-```{r individual filter with runs, warning=FALSE, messages=FALSE}
-library(plotly)
+
+Since this is only one filter of 17, a function was built to read in each filters data, clean the data set, append the appropriate flow data from the flow database, and finally merge each filters data set together into one. This task had to be automated for implementation into the treatment plants SCADA system so operators could receive real time information from the particle counters. To keep this functionality, the new full data set is continuously added to past data by querying the database when the data is pulled in 15 minute increments.
+
+
+```{r final dataset}
+kable(allData, "html", caption="Initial Particle Count Data") %>%
+    kable_styling() %>%
+    scroll_box(width = "100%", height = "500px")
+
+
+```
+
+
+```{r divide into filters}
 IDList <- list()
 filterList <- split(allData, allData$filter)
 filterList = filterList[names(filterList) != "18"]
@@ -59,11 +81,55 @@ for (filter in filterList){
     IDList[[i]] <- ID
   }
 }
-  FilterDateDF <- bind_rows(IDList)
-  FilterDateDF <- FilterDateDF[order(FilterDateDF$filter, FilterDateDF$Date), ]
+FilterDateDF <- bind_rows(IDList)
+FilterDateDF <- FilterDateDF[order(FilterDateDF$filter, FilterDateDF$Date), ]
 
- FilterDateDF <- subset(FilterDateDF, Bin1 < 300)
-  newList <- split(FilterDateDF, f = FilterDateDF$filter)
+FilterDateDF <- subset(FilterDateDF, Bin1 < 300)
+newList <- split(FilterDateDF, f = FilterDateDF$filter)
+
+
+
+```
+
+# Particle bins of interest
+Since we are mostly concerned with the particles in the 2-6 micron size range (*cryptosporidium* sized particles), bin 1 was used for analysis from here on. 
+
+# Boxplot of all fitlers
+A boxplot was used to get an idea of the median and deviation of the particle counts in each filter. The median, and lower/upper quartiles do vary slightly between filters which is to be expected, but overall are all around 50 counts per milliliter. What is more interesting about this, is the high frequency of outliers in the majority of the filters. An analysis was done into the outlier values which determined that the outlier values most frequently occurred at the time the solenoid switched the flow from one particle counter to the other. 
+
+```{r boxplot}
+boxplot(FilterDateDF$Bin1~FilterDateDF$filter, col=rainbow(4),
+           xlab = "Filter",
+           ylab = "2-6 um particle counts (Counts/ml)")
+
+
+
+```
+
+```{r animation}
+fig <- FilterDateDF %>%
+  plot_ly(
+    x = ~x,
+    y = ~y,
+    frame = ~f,
+    type = 'scatter',
+    mode = 'markers',
+    showlegend = F
+  )
+
+fig
+
+plot1 <- ggplot(filter, aes(runDifference, Bin1, color = filterRunDate)) + 
+   geom_point(aes(group = filterRunDate)) + labs(color = "Filter - Run start date") +
+   theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))+
+  xlab('Filter run time (hours)') +
+  ylab('2-6 um particle counts (Counts/ml)')+
+  ylim(0,300)
+
+```
+
+```{r individual filter with runs, warning=FALSE, messages=FALSE}
 
 for (filter in newList){
    if (nrow(filter) == 0){
@@ -93,9 +159,7 @@ print(plot2)
 print(plot3)
 }
 
-boxplot(FilterDateDF$Bin1~FilterDateDF$filter, col=rainbow(4),
-           xlab = "Filter",
-           ylab = "2-6 um particle counts (Counts/ml)")
+
   
 ```
 
