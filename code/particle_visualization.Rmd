@@ -1,0 +1,78 @@
+---
+title: "particle_count_vis"
+author: "Tarrik Quneibi"
+date: "2022-11-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(dplyr)
+library(tidyr)
+library(readr)
+
+```
+
+```{r data import}
+allData <- read_csv(paste(getwd(),"/data/PCcounts08242021.csv", sep=""))
+
+```
+
+```{r individual filter with runs, warning=FALSE, messages=FALSE}
+library(plotly)
+IDList <- list()
+filterList <- split(allData, allData$filter)
+filterList = filterList[names(filterList) != "18"]
+
+i <- 0
+for (filter in filterList){
+  runDateList <- split(filter, filter$runID)
+
+  for (ID in runDateList){
+      i <- i +1
+    ID$filterRunDate <- paste(ID$filter,format(ID$sampledDatePC[1],"%m/%d"),sep=" - ")
+    IDList[[i]] <- ID
+  }
+}
+  FilterDateDF <- bind_rows(IDList)
+  FilterDateDF <- FilterDateDF[order(FilterDateDF$filter, FilterDateDF$Date), ]
+
+ FilterDateDF <- subset(FilterDateDF, Bin1 < 300)
+  newList <- split(FilterDateDF, f = FilterDateDF$filter)
+
+for (filter in newList){
+   if (nrow(filter) == 0){
+     
+      next
+    }
+plot1 <- ggplot(filter, aes(runDifference, Bin1, color = filterRunDate)) + 
+   geom_point(aes(group = filterRunDate)) + labs(color = "Filter - Run start date") +
+   theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))+
+  xlab('Filter run time (hours)') +
+  ylab('2-6 um particle counts (Counts/ml)')+
+  ylim(0,300)
+
+plot2 <- ggplot(filter, aes(x=Bin1)) + 
+ geom_histogram(aes(y=..density..), colour="black", fill="white")+
+ geom_density(alpha=.2, fill="blue") +
+xlab(paste("Filter", filter$filter[1], "Bin 1 counts", sep= " "))
+
+plot3 <- ggplot(filter) + 
+   geom_line(aes(runDifference, turbidity, color = filterRunDate)) + 
+  labs(color = "Filter - Run start date")+
+  ylim(0, 0.15)
+
+print(plot1)
+print(plot2)
+print(plot3)
+}
+
+boxplot(FilterDateDF$Bin1~FilterDateDF$filter, col=rainbow(4),
+           xlab = "Filter",
+           ylab = "2-6 um particle counts (Counts/ml)")
+  
+```

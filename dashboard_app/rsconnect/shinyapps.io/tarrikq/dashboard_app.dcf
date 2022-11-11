@@ -1,0 +1,11 @@
+name: dashboard_app
+title:
+username:
+account: tarrikq
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 7540973
+bundleId: 6484618
+url: https://tarrikq.shinyapps.io/dashboard_app/
+when: 1667828219.22827
+lastSyncTime: 1667828219.22827
